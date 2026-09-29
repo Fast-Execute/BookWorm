@@ -55,12 +55,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
     taps++;
     if (taps >= 7) {
       taps = 0;
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminScreen()));
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminLoginScreen()));
     }
   }
 
   Future<List<Map<String, dynamic>>> loadBooks() async {
-    final response = await Supabase.instance.client.from('books').select().eq('is_active', true).order('created_at', ascending: false);
+    final response = await Supabase.instance.client
+        .from('books')
+        .select()
+        .eq('is_active', true)
+        .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -86,6 +90,105 @@ class _LibraryScreenState extends State<LibraryScreen> {
           },
         );
       },
+    ),
+  );
+}
+
+class AdminLoginScreen extends StatefulWidget {
+  const AdminLoginScreen({super.key});
+  @override
+  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
+}
+
+class _AdminLoginScreenState extends State<AdminLoginScreen> {
+  final email = TextEditingController();
+  final password = TextEditingController();
+  bool loading = false;
+  bool obscurePassword = true;
+
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  Future<void> login() async {
+    if (email.text.trim().isEmpty || password.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter your admin email and password.')));
+      return;
+    }
+
+    setState(() => loading = true);
+    try {
+      final client = Supabase.instance.client;
+      await client.auth.signInWithPassword(
+        email: email.text.trim(),
+        password: password.text,
+      );
+
+      final isAdmin = await client.rpc('is_admin');
+      if (isAdmin != true) {
+        await client.auth.signOut();
+        throw const AuthException('This account is not authorized as a BookWorm administrator.');
+      }
+
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const AdminScreen()),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Admin login failed: $error')));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Administrator Login')),
+    body: Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('BookWorm Admin', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Sign in with the administrator account configured in Supabase Auth.'),
+              const SizedBox(height: 24),
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.username],
+                decoration: const InputDecoration(labelText: 'Admin email', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: password,
+                obscureText: obscurePassword,
+                autofillHints: const [AutofillHints.password],
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                    icon: Icon(obscurePassword ? Icons.visibility : Icons.visibility_off),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: loading ? null : login,
+                child: Text(loading ? 'Signing in...' : 'Sign in'),
+              ),
+            ],
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -131,6 +234,10 @@ class _AdminScreenState extends State<AdminScreen> {
     setState(() => saving = true);
     try {
       final client = Supabase.instance.client;
+      if (await client.rpc('is_admin') != true) {
+        throw const AuthException('Administrator authorization is required.');
+      }
+
       final book = await client.from('books').insert({
         'title': title.text.trim(),
         'author': author.text.trim(),
@@ -164,9 +271,17 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<void> logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('BookWorm Admin')),
+    appBar: AppBar(
+      title: const Text('BookWorm Admin'),
+      actions: [IconButton(onPressed: logout, icon: const Icon(Icons.logout), tooltip: 'Sign out')],
+    ),
     body: ListView(padding: const EdgeInsets.all(20), children: [
       const Text('Add book', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
       const SizedBox(height: 16),
