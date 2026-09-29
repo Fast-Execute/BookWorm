@@ -1,13 +1,21 @@
 # BookWorm Flutter application
 
-This directory will contain the primary BookWorm Flutter client.
+BookWorm's primary client uses Flutter and Supabase.
 
-Planned modules:
+## Supabase configuration
 
-- Library
-- PDF reader
-- Reading progress
-- Admin book management
-- Supabase integration
+Run:
 
-The application must keep credentials out of source control.
+flutter pub get
+flutter run --dart-define=SUPABASE_URL=YOUR_PROJECT_URL --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+
+Never commit service-role keys or passwords.
+
+## Current implementation
+
+- Supabase Flutter client initialization
+- Active-book query from public.books
+- Seven taps on the b. BookWorm logo open the admin screen
+- Basic book metadata write to Supabase
+
+PDF selection/upload and production admin authorization are next.
