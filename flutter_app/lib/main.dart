@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -43,30 +45,30 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  int _logoTaps = 0;
-  DateTime? _lastTap;
+  int taps = 0;
+  DateTime? lastTap;
 
-  Future<void> _handleLogoTap() async {
+  Future<void> handleLogoTap() async {
     final now = DateTime.now();
-    if (_lastTap == null || now.difference(_lastTap!) > const Duration(seconds: 2)) _logoTaps = 0;
-    _lastTap = now;
-    _logoTaps++;
-    if (_logoTaps >= 7) {
-      _logoTaps = 0;
+    if (lastTap == null || now.difference(lastTap!) > const Duration(seconds: 2)) taps = 0;
+    lastTap = now;
+    taps++;
+    if (taps >= 7) {
+      taps = 0;
       await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminScreen()));
     }
   }
 
-  Future<List<Map<String, dynamic>>> _loadBooks() async {
+  Future<List<Map<String, dynamic>>> loadBooks() async {
     final response = await Supabase.instance.client.from('books').select().eq('is_active', true).order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: GestureDetector(onTap: _handleLogoTap, child: const Text('b. BookWorm'))),
+    appBar: AppBar(title: GestureDetector(onTap: handleLogoTap, child: const Text('b. BookWorm'))),
     body: FutureBuilder<List<Map<String, dynamic>>>(
-      future: _loadBooks(),
+      future: loadBooks(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
         if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Could not load books: ${snapshot.error}')));
@@ -98,31 +100,65 @@ class _AdminScreenState extends State<AdminScreen> {
   final title = TextEditingController();
   final author = TextEditingController();
   final pages = TextEditingController();
+  PlatformFile? selectedPdf;
   bool saving = false;
 
   @override
   void dispose() { title.dispose(); author.dispose(); pages.dispose(); super.dispose(); }
 
-  Future<void> _saveMetadata() async {
+  Future<void> pickPdf() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      withData: false,
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() => selectedPdf = result.files.single);
+    }
+  }
+
+  Future<void> saveBook() async {
     final pageCount = int.tryParse(pages.text.trim());
     if (title.text.trim().isEmpty || author.text.trim().isEmpty || pageCount == null || pageCount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter title, author and valid pages.')));
       return;
     }
+    if (selectedPdf == null || selectedPdf!.path == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a PDF first.')));
+      return;
+    }
+
     setState(() => saving = true);
     try {
-      await Supabase.instance.client.from('books').insert({
+      final client = Supabase.instance.client;
+      final book = await client.from('books').insert({
         'title': title.text.trim(),
         'author': author.text.trim(),
         'total_pages': pageCount,
-        'pdf_path': 'pending-upload',
-      });
+        'pdf_path': 'pending',
+      }).select('id').single();
+
+      final bookId = book['id'] as String;
+      final fileName = selectedPdf!.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      final objectPath = '$bookId/$fileName';
+
+      await client.storage.from('books').upload(
+        objectPath,
+        File(selectedPdf!.path!),
+        fileOptions: const FileOptions(contentType: 'application/pdf', upsert: false),
+      );
+
+      await client.from('books').update({'pdf_path': objectPath}).eq('id', bookId);
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Book metadata saved to Supabase.')));
-      title.clear(); author.clear(); pages.clear();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Book uploaded to Supabase and added to the library.')));
+      title.clear();
+      author.clear();
+      pages.clear();
+      setState(() => selectedPdf = null);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $error')));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -137,8 +173,17 @@ class _AdminScreenState extends State<AdminScreen> {
       TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
       TextField(controller: author, decoration: const InputDecoration(labelText: 'Author')),
       TextField(controller: pages, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Total pages')),
-      const SizedBox(height: 20),
-      FilledButton(onPressed: saving ? null : _saveMetadata, child: Text(saving ? 'Saving...' : 'Save to Supabase')),
+      const SizedBox(height: 16),
+      OutlinedButton.icon(
+        onPressed: saving ? null : pickPdf,
+        icon: const Icon(Icons.picture_as_pdf),
+        label: Text(selectedPdf == null ? 'Select PDF' : selectedPdf!.name),
+      ),
+      const SizedBox(height: 16),
+      FilledButton(
+        onPressed: saving ? null : saveBook,
+        child: Text(saving ? 'Uploading...' : 'Upload Book to Supabase'),
+      ),
     ]),
   );
 }
