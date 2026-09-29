@@ -16,7 +16,7 @@
 
 ## Current progress
 
-**Foundation — 20% complete**
+**Foundation + Supabase data foundation — 20% complete**
 
 `████░░░░░░ 20%`
 
@@ -28,6 +28,16 @@
 - Live progress tracker added
 - Product roadmap documented
 - Seven-tap `b.` admin-entry requirement recorded
+- Supabase database schema drafted and committed
+- `books` table defined with metadata and PDF object path
+- `reading_progress` table defined
+- Row Level Security policies defined for reader progress
+- Supabase storage and security setup documented
+- Multi-language project directories established
+
+### Current engineering state
+
+The Supabase integration is **schema-ready, not yet connected to a live Supabase project**. No credentials have been committed.
 
 ### Next milestone
 
@@ -37,9 +47,11 @@ Target capabilities:
 
 - Add books from the administrator interface
 - Select PDF files from the administrator's computer
-- Store book metadata
-- Connect PDF storage to the cloud architecture
+- Upload PDFs to a private Supabase Storage bucket
+- Store book metadata in Supabase
 - Display uploaded books in the library
+- Add authenticated administrator permissions
+- Test the complete upload-to-library flow
 
 ## Product rules
 
@@ -50,3 +62,4 @@ Target capabilities:
 5. Production admin access must use real authentication and authorization.
 6. Rewarded-book mechanics must use a compliant rewarded-ad provider and verified completion events.
 7. Never treat a planned feature as completed until it has been implemented and tested.
+8. Never commit Supabase service-role keys, passwords, or other secrets.
