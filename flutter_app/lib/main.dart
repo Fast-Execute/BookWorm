@@ -308,11 +308,42 @@ class _AdminScreenState extends State<AdminScreen> {
     super.dispose();
   }
 
+  Future<bool> _isPdfFile(String path) async {
+    final file = File(path);
+    final extension = path.split('.').last.toLowerCase();
+
+    // A normal PDF should have a .pdf extension. We also verify the
+    // file signature so Windows files with unusual/missing extensions
+    // can still be selected safely.
+    if (extension == 'pdf') {
+      return true;
+    }
+
+    try {
+      final handle = await file.open();
+      try {
+        final bytes = await handle.read(5);
+        return bytes.length == 5 &&
+            bytes[0] == 0x25 &&
+            bytes[1] == 0x50 &&
+            bytes[2] == 0x44 &&
+            bytes[3] == 0x46 &&
+            bytes[4] == 0x2D;
+      } finally {
+        await handle.close();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> pickPdf() async {
     try {
+      // Use the Windows picker without an extension filter. This avoids
+      // cases where Windows/file_picker hides a PDF because its extension
+      // or MIME metadata is unusual. We validate the selected file below.
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
+        type: FileType.any,
         withData: false,
       );
 
@@ -321,6 +352,18 @@ class _AdminScreenState extends State<AdminScreen> {
       }
 
       final pdf = result.files.single;
+      final path = pdf.path!;
+
+      if (!await _isPdfFile(path)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a valid PDF file.'),
+          ),
+        );
+        return;
+      }
+
       final fileSize = pdf.size;
 
       if (fileSize > maxPdfBytes) {
