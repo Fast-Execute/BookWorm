@@ -3,7 +3,7 @@
 
 insert into storage.buckets (id, name, public)
 values ('books', 'books', false)
-on conflict (id) do update set public = false;
+on conflict (id) do update set public = false, file_size_limit = 15728640;
 
 -- Authenticated readers may download objects only when application policy permits.
 drop policy if exists "Authenticated users can read book PDFs" on storage.objects;
