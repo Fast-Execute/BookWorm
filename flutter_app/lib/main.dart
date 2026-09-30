@@ -298,6 +298,8 @@ class _AdminScreenState extends State<AdminScreen> {
   PlatformFile? selectedPdf;
   bool saving = false;
 
+  static const int maxPdfBytes = 15 * 1024 * 1024;
+
   @override
   void dispose() {
     title.dispose();
@@ -318,7 +320,20 @@ class _AdminScreenState extends State<AdminScreen> {
         return;
       }
 
-      setState(() => selectedPdf = result.files.single);
+      final pdf = result.files.single;
+      final fileSize = pdf.size;
+
+      if (fileSize > maxPdfBytes) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF is too large. Maximum file size is 15 MB.'),
+          ),
+        );
+        return;
+      }
+
+      setState(() => selectedPdf = pdf);
     } catch (error) {
       if (!mounted) return;
 
@@ -350,6 +365,13 @@ class _AdminScreenState extends State<AdminScreen> {
     if (pdf == null || pdf.path == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Select a PDF first.')),
+      );
+      return;
+    }
+
+    if (pdf.size > maxPdfBytes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF is too large. Maximum file size is 15 MB.')),
       );
       return;
     }
