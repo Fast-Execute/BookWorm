@@ -16,9 +16,9 @@
 
 ## Current progress
 
-**Foundation + Supabase data foundation — 20% complete**
+**Foundation + Library/PDF implementation — 30% complete (live verification pending)**
 
-`████░░░░░░ 20%`
+`███░░░░░░░ 30%`
 
 ### Completed
 
@@ -30,6 +30,11 @@
 - Seven-tap `b.` admin-entry requirement recorded
 - Supabase database schema drafted and committed
 - `books` table defined with metadata and PDF object path
+- Flutter Book model added
+- Book data access moved into a dedicated BookService
+- Supabase Storage PDF operations moved into a dedicated StorageService
+- Admin authentication moved into a dedicated AuthService
+- Library, admin login, and admin upload screens separated from main.dart
 - `reading_progress` table defined
 - Row Level Security policies defined for reader progress
 - Supabase storage and security setup documented
@@ -37,11 +42,11 @@
 
 ### Current engineering state
 
-The Supabase integration is **schema-ready, not yet connected to a live Supabase project**. No credentials have been committed.
+The Supabase integration is wired to runtime configuration through `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. No credentials have been committed. Live database/storage verification remains the next test step.
 
 ### Next milestone
 
-**30% — Library + PDF management**
+**30% — Library + PDF management (implementation complete; verification pending)**
 
 Target capabilities:
 
