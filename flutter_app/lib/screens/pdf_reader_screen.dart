@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/book.dart';
-import '../services/storage_service.dart';
 
 class PdfReaderScreen extends StatefulWidget {
   const PdfReaderScreen({super.key, required this.book});
@@ -15,7 +15,6 @@ class PdfReaderScreen extends StatefulWidget {
 }
 
 class _PdfReaderScreenState extends State<PdfReaderScreen> {
-  final _storage = StorageService();
   PdfController? _controller;
   Object? _error;
   bool _loading = true;
@@ -33,7 +32,9 @@ class _PdfReaderScreenState extends State<PdfReaderScreen> {
       if (widget.book.pdfPath.isEmpty || widget.book.pdfPath == 'pending') {
         throw Exception('This book does not have a PDF attached yet.');
       }
-      final Uint8List bytes = await _storage.downloadPdf(widget.book.pdfPath);
+      final Uint8List bytes = await Supabase.instance.client.storage
+          .from('books')
+          .download(widget.book.pdfPath);
       if (bytes.isEmpty) throw Exception('The downloaded PDF is empty.');
       final controller = PdfController(document: PdfDocument.openData(bytes));
       if (!mounted) {
@@ -86,7 +87,10 @@ class _PdfReaderScreenState extends State<PdfReaderScreen> {
                       Text(_error.toString(), textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
                       const SizedBox(height: 16),
                       FilledButton.icon(
-                        onPressed: () => setState(() { _loading = true; _error = null; _openPdf(); }),
+                        onPressed: () {
+                          setState(() { _loading = true; _error = null; });
+                          _openPdf();
+                        },
                         icon: const Icon(Icons.refresh),
                         label: const Text('Try again'),
                       ),
