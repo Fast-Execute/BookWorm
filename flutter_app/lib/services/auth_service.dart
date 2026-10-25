@@ -13,5 +13,12 @@ class AuthService {
     }
   }
 
+  /// Rechecks administrator authorization before sensitive actions.
+  Future<bool> isAdmin() async {
+    if (_client.auth.currentUser == null) return false;
+    final result = await _client.rpc('is_admin');
+    return result == true;
+  }
+
   Future<void> signOut() => _client.auth.signOut();
 }
