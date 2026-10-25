@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/auth_service.dart';
 import '../../services/book_service.dart';
 import '../../services/storage_service.dart';
+import '../../utils/pdf_file_validator.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -21,23 +22,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
   PlatformFile? _selectedPdf;
   bool _saving = false;
-  static const int maxPdfBytes = 15 * 1024 * 1024;
 
   @override void dispose() {
     _title.dispose(); _author.dispose(); _pages.dispose(); super.dispose();
-  }
-
-  Future<bool> _isPdfFile(String path) async {
-    final file = File(path);
-    if (path.split('.').last.toLowerCase() == 'pdf') return true;
-    try {
-      final handle = await file.open();
-      try {
-        final bytes = await handle.read(5);
-        return bytes.length == 5 && bytes[0] == 0x25 && bytes[1] == 0x50 &&
-            bytes[2] == 0x44 && bytes[3] == 0x46 && bytes[4] == 0x2D;
-      } finally { await handle.close(); }
-    } catch (_) { return false; }
   }
 
   Future<void> _pickPdf() async {
@@ -45,12 +32,17 @@ class _AdminScreenState extends State<AdminScreen> {
       final result = await FilePicker.platform.pickFiles(type: FileType.any, withData: false);
       if (result == null || result.files.single.path == null) return;
       final pdf = result.files.single;
-      if (!await _isPdfFile(pdf.path!)) {
+      final file = File(pdf.path!);
+
+      // Validate the actual file, not just its extension or picker-reported size.
+      if (!await PdfFileValidator.hasPdfSignature(file)) {
         _showMessage('Please select a valid PDF file.'); return;
       }
-      if (pdf.size > maxPdfBytes) {
-        _showMessage('PDF is too large. Maximum file size is 15 MB.'); return;
+      final actualSize = await file.length();
+      if (!PdfFileValidator.isWithinSizeLimit(actualSize)) {
+        _showMessage('PDF is too large. Maximum file size is 15 MiB.'); return;
       }
+      if (!mounted) return;
       setState(() => _selectedPdf = pdf);
     } catch (error) { _showMessage('Could not select PDF: ' + error.toString()); }
   }
@@ -67,8 +59,19 @@ class _AdminScreenState extends State<AdminScreen> {
     if (pdf == null || pdf.path == null) {
       _showMessage('Select a PDF first.'); return;
     }
-    if (pdf.size > maxPdfBytes) {
-      _showMessage('PDF is too large. Maximum file size is 15 MB.'); return;
+
+    final pdfFile = File(pdf.path!);
+    try {
+      // Recheck immediately before upload in case the selected file changed.
+      if (!await PdfFileValidator.hasPdfSignature(pdfFile)) {
+        _showMessage('The selected file is no longer a valid PDF. Select it again.'); return;
+      }
+      final actualSize = await pdfFile.length();
+      if (!PdfFileValidator.isWithinSizeLimit(actualSize)) {
+        _showMessage('PDF is too large. Maximum file size is 15 MiB.'); return;
+      }
+    } catch (error) {
+      _showMessage('Could not read selected PDF: ' + error.toString()); return;
     }
 
     setState(() => _saving = true);
@@ -83,7 +86,7 @@ class _AdminScreenState extends State<AdminScreen> {
       final fileName = pdf.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
       objectPath = bookId + '/' + fileName;
 
-      await _storageService.uploadPdf(objectPath: objectPath, file: File(pdf.path!));
+      await _storageService.uploadPdf(objectPath: objectPath, file: pdfFile);
       await _bookService.setPdfPath(bookId: bookId, pdfPath: objectPath);
 
       _title.clear(); _author.clear(); _pages.clear();
