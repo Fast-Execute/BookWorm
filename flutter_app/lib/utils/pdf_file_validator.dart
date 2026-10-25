@@ -1,5 +1,3 @@
-import 'dart:io';
-
 /// Validation helpers for PDFs selected for upload to BookWorm.
 class PdfFileValidator {
   PdfFileValidator._();
@@ -9,22 +7,12 @@ class PdfFileValidator {
 
   static bool isWithinSizeLimit(int bytes) => bytes > 0 && bytes <= maxBytes;
 
-  /// Checks the file signature instead of trusting a filename extension.
-  static Future<bool> hasPdfSignature(File file) async {
-    RandomAccessFile? handle;
-    try {
-      handle = await file.open();
-      final header = await handle.read(5);
-      return header.length == 5 &&
-          header[0] == 0x25 && // %
-          header[1] == 0x50 && // P
-          header[2] == 0x44 && // D
-          header[3] == 0x46 && // F
-          header[4] == 0x2D; // -
-    } on FileSystemException {
-      return false;
-    } finally {
-      await handle?.close();
-    }
-  }
+  /// Checks the PDF signature instead of trusting the filename extension.
+  static bool hasPdfSignature(List<int> bytes) =>
+      bytes.length >= 5 &&
+      bytes[0] == 0x25 && // %
+      bytes[1] == 0x50 && // P
+      bytes[2] == 0x44 && // D
+      bytes[3] == 0x46 && // F
+      bytes[4] == 0x2D; // -
 }
