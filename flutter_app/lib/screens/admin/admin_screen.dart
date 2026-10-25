@@ -95,11 +95,13 @@ class _AdminScreenState extends State<AdminScreen> {
         _showMessage('Book uploaded successfully to Supabase.');
       }
     } catch (error) {
-      if (bookId != null) {
+      final failedBookId = bookId;
+      final failedObjectPath = objectPath;
+      if (failedBookId != null) {
         try {
-          if (objectPath != null) await _storageService.deletePdf(objectPath!);
+          if (failedObjectPath != null) await _storageService.deletePdf(failedObjectPath);
         } catch (_) {}
-        try { await _bookService.deleteBook(bookId!); } catch (_) {}
+        try { await _bookService.deleteBook(failedBookId); } catch (_) {}
       }
       if (mounted) _showMessage('Upload failed: ' + error.toString());
     } finally {
