@@ -1,0 +1,33 @@
+name: Flutter CI
+
+on:
+  pull_request:
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter-ci.yml"
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze Dart and Flutter code
+        run: flutter analyze
+      - name: Run unit tests
+        run: flutter test
