@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StorageService {
@@ -5,7 +7,7 @@ class StorageService {
   final SupabaseClient _client;
 
   /// Uploads bytes so the same path works on web, desktop, and mobile.
-  Future<void> uploadPdf({required String objectPath, required List<int> bytes}) async {
+  Future<void> uploadPdf({required String objectPath, required Uint8List bytes}) async {
     await _client.storage.from('books').uploadBinary(
       objectPath,
       bytes,
