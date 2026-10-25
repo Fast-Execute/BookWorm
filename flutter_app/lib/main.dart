@@ -11,7 +11,7 @@ Future<void> main() async {
     runApp(const ConfigurationMissingApp());
     return;
   }
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabasePublishableKey);
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
   runApp(const BookWormApp());
 }
 
