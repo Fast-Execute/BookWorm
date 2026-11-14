@@ -18,7 +18,9 @@
 
 **Foundation + Library/PDF implementation — 30% complete (live verification pending)**
 
-`███░░░░░░░ 30%`
+```
+[███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░] 30%
+```
 
 ### Completed
 

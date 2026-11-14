@@ -4,7 +4,13 @@ A multi-technology digital library project by Fast-Execute.
 
 ## Project status
 
-Foundation setup in progress.
+**Progress: 30%**
+
+```
+[███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░] 30%
+```
+
+Foundation and library/PDF implementation in progress (live verification pending).
 
 See `PROJECT_PROGRESS.md` for the live development tracker.
 
